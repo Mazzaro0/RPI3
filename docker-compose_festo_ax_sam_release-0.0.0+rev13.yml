@@ -1,0 +1,251 @@
+version: '2.1'
+volumes:
+  pymex_pip: {}
+  brain_logs: {}
+  field_data: {}
+  field_logs: {}
+  pymex_data: {}
+  cpxiotsdata: {}
+  brain_configs: {}
+  noderedaedata: {}
+  timescale_data: {}
+  pni_connector_data: {}
+  pni_connector_logs: {}
+  pni_connector_configs: {}
+networks:
+  brain_db_network: {}
+  ax_network_extern: {}
+  ax_network_intern: {}
+services:
+  iots:
+    image: >-
+      edge-docker.adeartifactory1.de.festo.net/cpx-iotgw-s:1.2.4-332f87e60.20250428-20250428135738
+    ports:
+      - 127.0.0.1:4444:8080
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    volumes:
+      - cpxiotsdata:/home/iot-s/volume
+    networks:
+      - ax_network_extern
+    depends_on:
+      - mosquitto-extern
+    stdin_open: true
+    environment:
+      IOTGW_HTTP: 'YES'
+      IOTGW_MQTTBROKER: mosquitto-extern
+    container_name: iots
+  brain:
+    image: scraitec-docker.adeartifactory1.de.festo.net/scraitec-brain:20.0.7
+    ports:
+      - 127.0.0.1:8080:8080
+      - 127.0.0.1:60042:60042
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    volumes:
+      - brain_configs:/configs
+      - brain_logs:/logs
+    networks:
+      - ax_network_intern
+      - brain_db_network
+    depends_on:
+      - mosquitto
+      - timescale
+    environment:
+      PNI_MODE: 'false'
+      LICENSE_KEY: >-
+        eyJhbGciOiJSUzUxMiJ9.eyJleHAiOjE3NjcyMjE5OTksIm5hbWUiOiJGZXN0by1Qb0MtMjAyNSJ9.I6RcmiUr34DgMRjHC0I5Fgf3ZMqATTk6oUlcSUUFhWQY8_hFdCtlSrg-OEsO2TOwj-HsvhC5oC5k8VsjmUhau-kvsBNd7M2WFn3R9ZJBb5QKIXQcL8-y2hoKtjE3bOeY1LdAXKHeYL8e4wQxoqqbhnRCMvU0uPKQ0pRc5I7v1WkW9HQ83pJrUnxF5yPDq4xT4COAswpqHXoO2GgBoeJfyInGjnjB4WXFZaK9rBurAH1QQ8d1Iwc3Qm8BLjZ2WTKNlTKWnHz8WqmELKccxB28YJ8q12MjK6aoVhrfA0LW6aEAW6MFi62l56WZ0U-rfEkqPRw3y1GSTijH7xRf-CwKJng7ShwCuSAAeUe4K3cRrPmL8af5hyKTSOJRXk9besJ19F6-PM6ZjJEqPXBFTkXgkEcnnTARghVBuVdPewwbVcOByBY3Rz6AFwnwUENE3McON8VOX50WRdRpMrjfVX3p2bBUmyOgngw-kncTeSp2kElIZTQfgS_X0QHQsRhI0zdpc6N7V5wj4keXYaTR1Z1BEV0b2HzMLQJEMZ7DroHiHh93cuRjLBsJq6N2F4_vTeINqZ5ytyiMh4dPfvR3Yhhkdd2ZtYBIJsWzp1a3s4QJToBVWelUpIUCXl1do1_78ulJzPpvQUDkioXrEdHMmQKdwKywr-nNQ-MhmT75ArOzoZk%
+      MQTT_ADDRESS: tcp://mosquitto:1883
+      TOKEN_SECRET: >-
+        cUxWdzJlcWJZVFpEelhrYVFmVFFoYWZnV1lWNGY0Q2pRUEpSQkVNeXdFTnRzazhYbW1rck9WejFJZ1RQcGJGQQ==
+      MOSQUITTO_PWD: eyDpIwEITuQmXFsudeAnLzNvOXhqZJBKw1hsma8kJVvw4TV8b9amRJs1yLK59CPc
+      TRANSFER_MODE: binary
+      MOSQUITTO_AUTH: simplepass
+      MOSQUITTO_USER: field
+      MQTT_DP_ADDRESS: tcp://mosquitto-extern:1883
+      dbConnectionUrl: >-
+        jdbc:postgresql://timescale:5432/fax?sslmode=disable&user=postgres&password=example
+      EMAIL_SENDER_NAME: '"Resolto Mailer"'
+      LOGGING_TIME_ZONE: Europe/Berlin
+      USER_SEED_DEMO_PWD: Demo123!
+      ACTIVATED_WORKFLOWS: FlexiblePredictiveMaintenanceWorkflow
+      USER_SEED_DEMO_MAIL: demo@festo.com
+      USER_SEED_DEMO_NAME: Festo
+      USER_SEED_FESTO_PWD: Fr3s0lt0
+      EMAIL_SENDER_ENABLED: 'false'
+      USER_SEED_FESTO_MAIL: digital@festo.com
+      USER_SEED_FESTO_NAME: Festo
+      EMAIL_SENDER_SMTP_HOST: smtp.office365.com
+      EMAIL_SENDER_SMTP_PORT: '587'
+      EMAIL_SENDER_URI_RESET: http://localhost:10123/login/reset-password/
+      SEND_LAST_VALID_VALUES: 'true'
+      EMAIL_SENDER_SMTP_LOGIN: mailer@resolto.com
+      EMAIL_SENDER_URI_CONFIRM: http://localhost:10123/login/confirm-password/
+      USER_SEED_SUPERADMIN_PWD: R461lt1!
+      USER_SEED_SUPERADMIN_MAIL: superadmin@festo.com
+      USER_SEED_SUPERADMIN_NAME: Festo
+      EMAIL_SENDER_SMTP_PASSWORD: abc
+    container_name: scraitec_brain-20.0.7
+  field:
+    image: scraitec-docker.adeartifactory1.de.festo.net/scraitec-field:20.0.7
+    ports:
+      - 127.0.0.1:60043:60043
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    volumes:
+      - field_data:/scraifield/configs
+      - field_logs:/logs
+    networks:
+      - ax_network_extern
+      - ax_network_intern
+    depends_on:
+      - mosquitto
+      - brain
+      - pymex
+    environment:
+      PYMEX_HOST: pymex
+      PYMEX_PORT: '9999'
+      MOSQUITTO_PWD: eyDpIwEITuQmXFsudeAnLzNvOXhqZJBKw1hsma8kJVvw4TV8b9amRJs1yLK59CPc
+      TRANSFER_MODE: binary
+      MOSQUITTO_USER: field
+      LOGGING_TIME_ZONE: Europe/Berlin
+      USER_SEED_FESTO_PWD: Fr3s0lt0
+      USER_SEED_FESTO_MAIL: digital@festo.com
+    container_name: scraitec_field-20.0.7
+  nginx:
+    image: scraitec-docker.adeartifactory1.de.festo.net/ax-nginx:20.0.7
+    ports:
+      - '80:10123'
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    networks:
+      - ax_network_intern
+      - ax_network_extern
+    depends_on:
+      - brain
+      - iots
+      - nodered
+    environment:
+      NGINX_PORT: '10123'
+      NODERED_HOST: nodered
+      PLATFORM_ADDRESS: brain:8080
+      PNI_CONNECTOR_ADDRESS: pni-connector
+      NGINX_HTPASSWD_ENTRY_IN_SINGLEQUOTES: ''
+    container_name: ax_nginx-20.0.7
+  pymex:
+    image: scraitec-docker.adeartifactory1.de.festo.net/scraitec-pymex-slim:20.0.7
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    volumes:
+      - pymex_data:/pymex/local-storage
+      - pymex_pip:/pymex/.local
+    networks:
+      - ax_network_intern
+    container_name: scraitec_pymex-20.0.7
+  nodered:
+    image: scraitec-docker.adeartifactory1.de.festo.net/scraitec-nodered:20.0.7
+    ports:
+      - 127.0.0.1:1880:1880
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    volumes:
+      - noderedaedata:/data
+    networks:
+      - ax_network_intern
+      - ax_network_extern
+    container_name: scraitec_nodered-20.0.7
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    command: mosquitto -c /mosquitto-no-auth.conf
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    networks:
+      - ax_network_intern
+  timescale:
+    image: timescale/timescaledb:2.17.2-pg17-bitnami
+    ports:
+      - 127.0.0.1:5432:5432
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    volumes:
+      - timescale_data:/bitnami/postgresql
+    networks:
+      - ax_network_intern
+      - brain_db_network
+    environment:
+      PGPASSWORD: example
+      POSTGRES_DATABASE: fax
+      POSTGRES_PASSWORD: example
+      POSTGRES_USERNAME: postgres
+      TIMESCALEDB_TELEMETRY: 'off'
+  pni-connector:
+    image: scraitec-docker.adeartifactory1.de.festo.net/scraitec-pni-connector:20.0.7
+    ports:
+      - 127.0.0.1:8007:8007
+      - 127.0.0.1:60044:60044
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    volumes:
+      - pni_connector_configs:/appFolder/configs
+      - pni_connector_logs:/logs
+    networks:
+      - ax_network_extern
+    depends_on:
+      - mosquitto-extern
+    environment:
+      LOGGING_TIME_ZONE: Europe/Berlin
+    container_name: scraitec_pni_connector-20.0.7
+  mosquitto-extern:
+    image: eclipse-mosquitto:latest
+    ports:
+      - '1888:1883'
+    command: mosquitto -c /mosquitto-no-auth.conf
+    logging:
+      driver: json-file
+      options:
+        max-file: '10'
+        max-size: 100m
+    restart: unless-stopped
+    networks:
+      - ax_network_extern
+x-logging:
+  driver: json-file
+  options:
+    max-file: '10'
+    max-size: 100m
